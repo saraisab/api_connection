@@ -1,0 +1,63 @@
+import pandas as pd
+import requests
+import smtplib
+
+
+# csv path to download files
+path = '//complete/path/'
+csv_produccion = 'production.csv'
+csv_maquinas = 'alarms.csv'
+csv_errores = 'errors.csv'
+
+# api connection url
+URL = "https://.../"
+
+
+URL_api_1 = URL + "api1/api"
+URL_api_2 = URL + "api2"
+URL_api_3 = URL + "api3"
+
+# email errors
+error_general = 'ERROR GENERAL: No se han podido generar los archivos'
+error_empty_file = 'ERROR ARCHIVO VACIO: El archivo no se ha generado porque no tiene contenido'
+
+
+def conexion(url):
+    response = requests.get(url, verify=False)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return enviar_email(url)
+
+
+def convertir_dataframe(data, archivo_csv):
+    # create a dataframe for the dict and copy it to a csv file
+    df = pd.DataFrame(data['data'])
+    df.to_csv(path+archivo_csv)
+
+
+def enviar_email(error):
+    message = 'Error en conexion a la api \n\nError conexion api ' + error + '\n\n'
+    mailserver = smtplib.SMTP('host.email.com', 587, timeout=120)
+    mailserver.ehlo()
+    mailserver.starttls()
+    mailserver.login('myemail@email.com', 'mypassword')
+    mailserver.sendmail('emailfrom@email.com', 'toemail@email.com', message)
+    mailserver.quit()
+
+
+if __name__ == '__main__':
+    try:
+        data_produccion = conexion(URL_api_1)
+
+        if len(data_produccion) != 0:  # if there exist data, the files are created, if don't, an email is sent
+            convertir_dataframe(data_produccion, csv_produccion)
+            data_maquinas = conexion(URL_api_2)
+            convertir_dataframe(data_maquinas, csv_maquinas)
+            data_errores = conexion(URL_api_3)
+            convertir_dataframe(data_errores, csv_errores)
+        else:
+            enviar_email(error_empty_file)
+
+    except Exception:
+        enviar_email(error_general)
